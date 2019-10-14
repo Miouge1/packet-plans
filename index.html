@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <title>Packet Facilities and Plans</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  <script src="https://unpkg.com/vue-tables-2/dist/vue-tables-2.min.js"></script>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+</head>
+
+<body>
+  <div id="app">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark">
+      <a class="navbar-brand" href="#"></i>Packet Facilities and Plans</a>
+    </nav>
+
+    <main role="main" class="container">
+      <div class="row">
+        <div>
+          <v-client-table name="Test" :data="plans" :columns="columns" :options="options">
+              <p slot="specs" slot-scope="props">{{ props.row.specs }}</p>
+              <p slot="pricing" slot-scope="props">{{ props.row.pricing.hour }} $/h</p>
+          </v-client-table>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    Vue.use(VueTables.ClientTable);
+
+    var app = new Vue({
+      el: '#app',
+      data: {
+        timer: null,
+        api: '/api',
+        rawPlans: [],
+        rawFacilities: [],
+        projects: [],
+        options: {
+          saveState: true,
+          perPage: 100,
+          columnsDropdown: true,
+          sortIcon: {
+            base: 'fa',
+            up: 'fa-sort-up',
+            down: 'fa-sort-down',
+            is: 'fa-sort',
+          },
+        }
+      },
+      mounted() {
+        // fetch data from Packet API
+        this.fetch();
+      },
+      computed: {
+        columns: function() {
+          c = ['name', 'pricing']
+          this.rawFacilities.forEach(function(f) {
+            c.push(f.code)
+           });
+          return c
+        },
+        plans: function() {
+          /* Prepare a map of facility ID to facility codes */
+          facility_id_to_code = {}
+          this.rawFacilities.forEach(function(f) {
+            facility_id_to_code[f.id] = f.code;
+          });
+          plans = [];
+          this.rawPlans.forEach(function(x) {
+            if (x['available_in'].length) { /* skip plans that are not available anywayre */
+              x['available_in'].forEach(function(f) {
+                facility_id = f['href'].replace("/facilities/", "");
+                x[facility_id_to_code[facility_id]] = 'Y'
+              });
+              plans.push(x);
+            }
+          })
+          return plans;
+        }
+      },
+      methods: {
+        _get: function(path) {
+          return axios.get(this.api + path);
+        },
+        _get_plans: function(page = 1) {
+          this._get('/plans')
+            .then(response => {
+              this.rawPlans = response.data['plans'];
+            });
+        },
+        _get_facilities: function(page = 1) {
+          this._get('/facilities')
+            .then(response => {
+              this.rawFacilities = response.data['facilities'];
+              response.data['facilities'].forEach(function(f){
+                console.log(this.columns);
+              });
+            });
+        },
+        fetch: function() {
+          this._get_facilities();
+          this._get_plans();
+        }
+      }
+    })
+  </script>
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+</body>
+
+</html>
